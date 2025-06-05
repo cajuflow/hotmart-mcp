@@ -1,0 +1,48 @@
+[tool.pytest.ini_options]
+# pytest configuration for Hotmart MCP
+minversion = "6.0"
+testpaths = ["src/tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = [
+    "-v",                    # verbose output
+    "--tb=short",           # shorter traceback format
+    "--strict-markers",     # strict marker checking
+    "--disable-warnings",   # disable warnings
+    "--color=yes",         # colored output
+]
+
+# Custom markers
+markers = [
+    "unit: Unit tests that don't require API calls",
+    "integration: Integration tests that require API credentials",
+    "slow: Tests that take a long time to run",
+    "auth: Tests that require authentication",
+]
+
+# Test discovery
+norecursedirs = [
+    ".*",
+    "build",
+    "dist",
+    "*.egg",
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+]
+
+# Logging configuration
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+# Coverage configuration (if using pytest-cov)
+# addopts = [
+#     "--cov=hotmart",
+#     "--cov-report=html",
+#     "--cov-report=term-missing",
+#     "--cov-fail-under=80",
+# ]

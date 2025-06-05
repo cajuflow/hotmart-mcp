@@ -1,0 +1,1 @@
+# Hotmart MCP Package
