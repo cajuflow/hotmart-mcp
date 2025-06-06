@@ -26,7 +26,9 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import logging
 from mcp.server.fastmcp import FastMCP
 
-from hotmart.config import HOTMART_ENVIRONMENT, BASE_URL
+from hotmart.config import (
+    HOTMART_ENVIRONMENT, BASE_URL
+)
 from hotmart.tools import get_products, get_sales_history
 
 # Configure logging
@@ -105,15 +107,34 @@ async def get_hotmart_sales_history(
     )
 
 async def server_main():
-    mcp.run()
+    """Asynchronously runs the main server logic."""
+    # This function can be expanded for more complex startup sequences
+    run_server()
 
-if __name__ == "__main__":
+def run_server():
+    """
+    Detects the transport mode from environment variables and starts the
+    MCP server accordingly.
+    """
     # Show startup information to stderr (visible in Claude Desktop logs)
     print("Starting Hotmart MCP Server", file=sys.stderr)
     print(f"Environment: {HOTMART_ENVIRONMENT}", file=sys.stderr)
     print(f"API Base URL: {BASE_URL}", file=sys.stderr)
-    print("Available tools: get_hotmart_products, get_hotmart_sales_history", file=sys.stderr)
+    print(f"Transport mode selected: {TRANSPORT_TYPE.upper()}", file=sys.stderr)
     print("=" * 50, file=sys.stderr)
-    
-    # Run the FastMCP server
-    mcp.run(transport='stdio')
+
+    if TRANSPORT_TYPE == "sse":
+        print(f"-> Running in SSE mode", file=sys.stderr)
+        mcp.run(transport="sse")
+    elif TRANSPORT_TYPE == "stdio":
+        print("-> Running in STDIO mode for local integration", file=sys.stderr)
+        mcp.run(transport="stdio")
+    else:
+        print(
+            f"FATAL: Invalid TRANSPORT_TYPE '{TRANSPORT_TYPE}'. Must be 'stdio' or 'sse'.",
+            file=sys.stderr
+        )
+        sys.exit(1)
+
+if __name__ == "__main__":
+    run_server()

@@ -12,18 +12,7 @@ authors = [
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
-keywords = ["mcp", "hotmart", "api", "claude", "ai"]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
-]
+keywords = ["mcp", "hotmart", "api", "claude"]
 
 dependencies = [
     "mcp>=1.0.0",
@@ -38,131 +27,27 @@ dependencies = [
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.1.0",
     "black>=23.0.0",
     "isort>=5.12.0",
-    "mypy>=1.5.0",
-    "pre-commit>=3.4.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/cajuflow/hotmart-mcp"
 Repository = "https://github.com/cajuflow/hotmart-mcp"
-Issues = "https://github.com/cajuflow/hotmart-mcp/issues"
 
-[project.scripts]
-hotmart-mcp = "hotmart_mcp:main"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/hotmart"]
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "/src",
-    "/README.md",
-    "/LICENSE",
-]
-
-# Black configuration
-[tool.black]
-line-length = 88
-target-version = ['py311']
-include = "\\.pyi?$"
-
-# isort configuration
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 88
-known_first_party = ["hotmart"]
-src_paths = ["src", "tests"]
-
-# mypy configuration
-[tool.mypy]
-python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
-
-[[tool.mypy.overrides]]
-module = [
-    "mcp.*",
-    "httpx.*",
-    "dotenv.*",
-]
-ignore_missing_imports = true
-
-# pytest configuration
+# Pytest configuration - básico
 [tool.pytest.ini_options]
-minversion = "6.0"
 testpaths = ["src/tests"]
 python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
 addopts = [
-    "-v",                    # verbose output
-    "--tb=short",           # shorter traceback format
-    "--strict-markers",     # strict marker checking
-    "--disable-warnings",   # disable warnings
-    "--color=yes",         # colored output
-    "--asyncio-mode=auto",  # automatic asyncio support
+    "-v",
+    "--asyncio-mode=auto",
 ]
 
-# Custom markers
-markers = [
-    "unit: Unit tests that don't require API calls",
-    "integration: Integration tests that require API credentials",
-    "slow: Tests that take a long time to run",
-    "auth: Tests that require authentication",
-]
+# Black configuration - básico
+[tool.black]
+line-length = 88
 
-# Test discovery
-norecursedirs = [
-    ".*",
-    "build",
-    "dist",
-    "*.egg",
-    "__pycache__",
-    ".git",
-    ".venv",
-    "venv",
-]
-
-# Logging configuration
-log_cli = true
-log_cli_level = "INFO"
-log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
-log_cli_date_format = "%Y-%m-%d %H:%M:%S"
-
-# Coverage configuration
-[tool.coverage.run]
-source = ["src/hotmart"]
-omit = [
-    "*/tests/*",
-    "*/__pycache__/*",
-    "*/venv/*",
-    "*/.venv/*",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if 0:",
-    "if __name__ == .__main__.:",
-    "class .*Protocol",
-    "@abstractmethod",
-]
+# isort configuration - básico  
+[tool.isort]
+profile = "black"

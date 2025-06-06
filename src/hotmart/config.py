@@ -18,6 +18,9 @@ HOTMART_ENVIRONMENT = os.getenv("HOTMART_ENVIRONMENT", "sandbox")
 HOTMART_TIMEOUT = int(os.getenv("HOTMART_TIMEOUT", "30"))
 HOTMART_MAX_RETRIES = int(os.getenv("HOTMART_MAX_RETRIES", "3"))
 
+# MCP Server Configuration
+TRANSPORT_TYPE = os.getenv("TRANSPORT_TYPE", "stdio").lower()
+
 # Validate required configuration
 if not HOTMART_CLIENT_ID or not HOTMART_CLIENT_SECRET:
     raise ValueError("HOTMART_CLIENT_ID and HOTMART_CLIENT_SECRET are required")

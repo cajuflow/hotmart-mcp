@@ -1,285 +1,116 @@
 # Hotmart MCP Server
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
-Model Context Protocol (MCP) server for integrating with Hotmart APIs. This server enables AI agents to manage products, sales, and other Hotmart operations through a standardized interface.
+Servidor MCP (Model Context Protocol) para integração com APIs da Hotmart. Este servidor permite que agentes de IA gerenciem produtos, vendas e outras operações da Hotmart através de uma interface padronizada.
 
-## 🏗️ Architecture
+## 📋 Sobre
 
-This project follows **modular architecture** with separation of concerns:
+O **Hotmart MCP Server** é uma implementação do Model Context Protocol que conecta o Claude (e outros LLMs) diretamente às APIs da Hotmart. Desenvolvido com arquitetura modular e suporte a múltiplos transportes (STDIO local e SSE web), oferece uma integração robusta e flexível para automação de operações de produtores digitais.
 
-```
-src/hotmart/
-├── models/
-│   ├── base.py         # 📋 ApiResponse, AuthToken
-│   ├── product.py      # 📦 Product models
-│   ├── sale.py         # 💰 Sale models
-│   ├── subscription.py # 🔄 Subscription models
-│   └── __init__.py     # 📚 Centralized imports
-├── tools/
-│   ├── base.py         # 🛠️ Utilities & validation
-│   ├── products.py     # 📦 get_products tool
-│   ├── sales.py        # 💰 get_sales tool
-│   └── __init__.py     # 📚 Centralized imports
-├── config.py           # ⚙️ Configuration
-├── auth.py             # 🔐 Authentication
-├── client.py           # 🌐 API client
-└── __init__.py         # 📦 Package init
+## 📋 Pré-requisitos
 
-hotmart_mcp.py         # 🚀 MCP Server (main)
-test.py               # 🧪 Architecture Testing
-```
+- **Python 3.11** ou superior
+- **Conta Hotmart** com credenciais de API
+- **uv** (recomendado) ou pip para gerenciamento de dependências
+- **Claude Desktop** (para uso local) ou navegador web (para uso SSE)
 
-### Benefits:
-- ✅ **Single Responsibility**: Each file has one clear purpose
-- ✅ **Easy Maintenance**: Bug fixes isolated to specific components
-- ✅ **Better Testing**: Components can be tested independently
-- ✅ **Extensibility**: Add features without affecting existing code
-- ✅ **Reusability**: Components can be used across projects
+## 🚀 Instalação
 
-## 📦 Installation
-
-### Prerequisites
-- Python 3.11 or higher
-- A Hotmart account with API credentials
-
-### Setup
-
-1. Clone the repository:
+### 1. Clonar o Repositório
 ```bash
 git clone https://github.com/cajuflow/hotmart-mcp.git
 cd hotmart-mcp
 ```
 
-2. Install with uv (recommended):
+### 2. Instalar Dependências
 ```bash
 uv sync
 ```
 
-Or with pip:
+### 3. Configurar Variáveis de Ambiente
 ```bash
-pip install -r requirements.txt
-```
-
-3. Set up environment variables:
-```bash
+# Copiar arquivo de exemplo
 cp .env.example .env
-# Edit .env with your Hotmart credentials
+
+# Editar com suas credenciais
+nano .env
 ```
 
-## 🔧 Configuration
-
-Create a `.env` file with your Hotmart API credentials:
-
+Conteúdo do `.env`:
 ```env
-HOTMART_CLIENT_ID=your_client_id_here
-HOTMART_CLIENT_SECRET=your_client_secret_here
+# Credenciais Hotmart (obrigatório)
+HOTMART_CLIENT_ID=seu_client_id_aqui
+HOTMART_CLIENT_SECRET=seu_client_secret_aqui
+HOTMART_BASIC_TOKEN=seu_basic_token_aqui
+
+# Ambiente da Hotmart (sandbox ou production)
 HOTMART_ENVIRONMENT=sandbox
+
+# Configuração MCP (sse ou stdio)
+TRANSPORT_TYPE=stdio
 ```
 
-### Getting Hotmart API Credentials
+### 4. Integração com Claude Desktop
 
-1. Log in to your Hotmart account
-2. Go to **Manage my business** > **Products** > **Tools**
-3. Click on **Hotmart Credentials**
-4. Click **Create Credential**
-5. Select **API Hotmart** and click **Create Credential**
-6. **IMPORTANT**: Copy all three values:
-   - **Client ID**
-   - **Client Secret** 
-   - **Basic Token** (this is essential for authentication!)
+Adicione ao seu `claude_desktop_config.json`:
 
-> ⚠️ **Note**: The Basic Token is required for authentication. Without it, you'll get 401 errors.
-
-## 🔌 Claude Desktop Integration
-
-To use this MCP server with Claude Desktop, add the following to your `claude_desktop_config.json`:
-
-### Windows
+**stdio:**
 ```json
 {
   "mcpServers": {
     "hotmart": {
-      "command": "uv",
-      "args": [
-      "--directory",
-      "F:\\src\\github\\cajuflow\\mcp\\hotmart-mcp",
-      "run", "python", "hotmart_mcp.py"
-      ]
+      "command": "uv"
     }
   }
 }
 ```
 
-### macOS/Linux
+**sse:**
 ```json
 {
   "mcpServers": {
     "hotmart": {
-      "command": "uv",
+      "command": "uv", 
       "args": [
         "--directory",
-        "/absolute/path/to/hotmart-mcp",
-        "run",
-        "python",
-        "hotmart_mcp.py"
+        "/caminho/absoluto/para/hotmart-mcp",
+        "run", "python", "hotmart_mcp.py"
       ]
     }
   }
 }
 ```
 
-## 🛠️ Available Tools
+### 5. Executar o Servidor
 
-### `get_products`
-Lists all products from your Hotmart account.
-
-**Parameters:**
-- `status` (optional): Filter by product status (`ACTIVE`, `INACTIVE`, `DRAFT`)
-- `limit` (optional): Number of products to return (default: 20, max: 100)
-- `offset` (optional): Pagination offset (default: 0)
-
-**Example usage in Claude:**
-```
-"List my active products from Hotmart"
-"Show me the first 10 products"
-"Get all inactive products"
-```
-
-## 🧪 Testing
-
-### Quick Test
 ```bash
-# Test the complete setup and architecture
-uv run python test.py
-```
-
-### Manual Testing
-```bash
-# Run the MCP server
+# Modo STDIO (padrão - Claude Desktop)
 uv run python hotmart_mcp.py
+
+# Modo SSE (aplicações web)
+TRANSPORT_TYPE=sse uv run python hotmart_mcp.py
 ```
 
-## 🔧 Troubleshooting
+## 🛠️ Ferramentas Disponíveis
 
-### Common Issues
+* `get_hotmart_products`: Lista produtos da sua conta Hotmart com filtros avançados.
+* `get_hotmart_sales_history`: Obtém histórico de vendas com filtros detalhados.
 
-#### 401 Unauthorized Error
-- **Cause**: Missing or incorrect Basic Token
-- **Solution**: Ensure you have all 3 credentials from Hotmart:
-  ```env
-  HOTMART_CLIENT_ID=your_client_id
-  HOTMART_CLIENT_SECRET=your_client_secret
-  HOTMART_BASIC_TOKEN=your_basic_token  # This is crucial!
-  ```
-
-#### "FastMCP object has no attribute 'run_server'" Error
-- **Cause**: Outdated MCP SDK
-- **Solution**: Update dependencies:
-  ```bash
-  uv sync --upgrade
-  ```
-
-#### Claude Desktop Not Detecting Server
-- **Cause**: Incorrect path in config
-- **Solution**: Use absolute path in `claude_desktop_config.json`:
-  ```json
-  {
-    "mcpServers": {
-      "hotmart": {
-        "command": "uv",
-        "args": [
-          "--directory",
-          "F:\\src\\github\\cajuflow\\mcp\\hotmart-mcp",
-          "run", "python", "hotmart_mcp.py"
-        ]
-      }
-    }
-  }
-  ```
-
-#### No Products Returned
-- **Cause**: Empty product catalog or incorrect environment
-- **Solution**: 
-  - Check if you have products in your Hotmart account
-  - Verify HOTMART_ENVIRONMENT (sandbox vs production)
-  - Test with different status filters
-
-### Debug Tools
-
+### Testes
 ```bash
-# Complete system test
-uv run python test.py
-
-# Enable detailed logging
-export LOG_LEVEL=DEBUG
-uv run python hotmart_mcp.py
+uv run python test_runner.py all
 ```
 
-### Code Formatting
 
-```bash
-# Format code
-uv run black hotmart_mcp.py
+## 🆘 Suporte
 
-# Sort imports
-uv run isort hotmart_mcp.py
-
-# Type checking
-uv run mypy hotmart_mcp.py
-```
-
-## 📋 API Reference
-
-### Product Object Structure
-
-```python
-{
-    "id": "12345",
-    "name": "My Digital Course",
-    "status": "ACTIVE",
-    "type": "COURSE",
-    "price": 99.99,
-    "currency": "BRL",
-    "created_date": "2025-01-01T00:00:00Z",
-    "updated_date": "2025-01-15T00:00:00Z",
-    "description": "Course description",
-    "category": "Education"
-}
-```
-
-## 🔒 Security
-
-- All API calls use OAuth 2.0 authentication
-- Credentials are stored in environment variables
-- Tokens are automatically refreshed when expired
-- Sandbox environment available for testing
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- 📧 Email: support@cajuflow.com
-- 💬 Discord: [Join our community](https://discord.gg/cajuflow)
-- 🐛 Bug Reports: [GitHub Issues](https://github.com/cajuflow/hotmart-mcp/issues)
-
-## 🔗 Related Projects
-
-- [@cajuflow/cortaposta](https://github.com/cajuflow/cortaposta) - Automated video content creation
-- [Cajuflow Automation Suite](https://cajuflow.com) - Complete automation solutions
+- 📧 **Email**: contato@vdscruz.com
+- 🐛 **Issues**: [GitHub Issues](https://github.com/cajuflow/hotmart-mcp/issues)
 
 ---
 
-**Made with ❤️ by [Cajuflow](https://cajuflow.com)**
+**Desenvolvido com ❤️ pela Cajuflow**
 
-*Empowering digital creators with intelligent automation solutions.*
+*Empoderando criadores digitais com soluções inteligentes de automação.*
