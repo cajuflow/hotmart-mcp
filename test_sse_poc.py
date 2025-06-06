@@ -81,13 +81,16 @@ class MCPSSEToolsClient:
                     
                     # Processa eventos de dados
                     if line.startswith("data: "):
+                        data_str = line[6:].strip()
+                        print(f"🔍 DEBUG SSE data: '{data_str}'")  # DEBUG
+                        
+                        if not data_str:
+                            continue
+                            
                         try:
-                            data_str = line[6:].strip()
-                            if not data_str:
-                                continue
-                                
                             # Tenta parse JSON
                             data = json.loads(data_str)
+                            print(f"🔍 DEBUG JSON parsed: {data}")  # DEBUG
                             
                             # Se tem ID, é resposta a requisição
                             if "id" in data:
@@ -95,12 +98,17 @@ class MCPSSEToolsClient:
                                 self.responses[req_id] = data
                                 method = data.get("method", "resultado")
                                 print(f"📨 Resposta recebida para req {req_id}: {method}")
+                                print(f"🔍 DEBUG stored response: {json.dumps(data, indent=2)}")  # DEBUG
                             else:
                                 print(f"📢 Evento: {data}")
                                 
-                        except json.JSONDecodeError:
-                            # Ignora linhas não-JSON
+                        except json.JSONDecodeError as e:
+                            print(f"🔍 DEBUG JSON error: {e} - Raw: '{data_str}'")  # DEBUG
                             continue
+                    else:
+                        # Mostra outras linhas SSE para debug
+                        if line.strip():
+                            print(f"🔍 DEBUG SSE line: '{line.strip()}'")  # DEBUG
                 
         except Exception as e:
             print(f"❌ Erro na escuta SSE: {e}")
@@ -146,13 +154,21 @@ class MCPSSEToolsClient:
                 print(f"✅ Mensagem aceita (status {response.status_code})")
                 
                 # Aguarda resposta via SSE
-                for _ in range(int(timeout * 10)):
+                print(f"🔍 DEBUG: Aguardando resposta para req_id {req_id}...")
+                for i in range(int(timeout * 10)):
                     if req_id in self.responses:
                         response_data = self.responses.pop(req_id)
+                        print(f"✅ Resposta encontrada para req {req_id}!")
                         return response_data
+                    
+                    # Debug a cada 2 segundos
+                    if i % 20 == 0 and i > 0:
+                        print(f"🔍 DEBUG: Ainda aguardando... ({i/10:.1f}s) - Respostas disponíveis: {list(self.responses.keys())}")
+                    
                     await asyncio.sleep(0.1)
                 
                 print(f"⏱️  Timeout aguardando resposta de {method}")
+                print(f"🔍 DEBUG: Respostas disponíveis no timeout: {list(self.responses.keys())}")
                 return None
             else:
                 print(f"❌ Erro HTTP {response.status_code}: {response.text}")
@@ -176,9 +192,10 @@ class MCPSSEToolsClient:
         return True
     
     async def initialize(self) -> bool:
-        """Inicializa protocolo MCP"""
+        """Inicializa protocolo MCP (COMPLETO)"""
         print("\n🔌 Inicializando MCP...")
         
+        # 1. Envia initialize request
         response = await self._send_and_wait("initialize", {
             "protocolVersion": "2024-11-05",
             "capabilities": {"tools": {}},
@@ -187,19 +204,62 @@ class MCPSSEToolsClient:
         
         if response and "result" in response:
             server_info = response["result"].get("serverInfo", {})
-            print(f"✅ MCP inicializado!")
+            print(f"✅ Initialize response recebido!")
             print(f"   Servidor: {server_info.get('name', 'N/A')}")
             print(f"   Versão: {server_info.get('version', 'N/A')}")
+            
+            # 2. OBRIGATÓRIO: Envia initialized notification
+            print("📤 Enviando initialized notification...")
+            await self._send_notification("notifications/initialized")
+            
+            # 3. Aguarda um pouco para inicialização completar
+            await asyncio.sleep(1)
+            
+            print("✅ MCP completamente inicializado!")
             return True
         else:
-            print("⚠️  Initialize falhou, continuando...")
+            print("❌ Initialize falhou")
             return False
+    
+    async def _send_notification(self, method: str, params: Dict = None):
+        """Envia notification (sem ID, sem resposta esperada)"""
+        if not self.session_id:
+            print("❌ Session ID não disponível")
+            return
+            
+        message = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params or {}
+        }
+        
+        try:
+            url_with_session = f"{self.config.messages_url}?session_id={self.session_id}"
+            
+            print(f"📡 Enviando notification {method}")
+            
+            response = await self.client.post(
+                url_with_session,
+                headers=self._get_headers(),
+                json=message
+            )
+            
+            if response.status_code in [200, 202]:
+                print(f"✅ Notification aceita (status {response.status_code})")
+            else:
+                print(f"❌ Erro notification {response.status_code}: {response.text}")
+                
+        except Exception as e:
+            print(f"❌ Erro enviando notification {method}: {e}")
     
     async def list_tools(self) -> List[Dict[str, Any]]:
         """Lista ferramentas disponíveis"""
         print("\n🔧 Listando tools...")
         
-        response = await self._send_and_wait("tools/list")
+        # Timeout maior para tools/list pois pode demorar mais
+        response = await self._send_and_wait("tools/list", timeout=15.0)
+        
+        print(f"🔍 DEBUG tools/list response: {response}")  # DEBUG
         
         if response and "result" in response and "tools" in response["result"]:
             tools = response["result"]["tools"]
