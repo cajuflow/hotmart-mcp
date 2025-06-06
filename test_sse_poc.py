@@ -1,220 +1,294 @@
 #!/usr/bin/env python3
 """
-POC: MCP Server SSE Tools Discovery
-Conecta a um MCP server via SSE e retorna as tools disponíveis
+POC: MCP SSE Tools Discovery - POST + SSE Response Pattern
 """
 
 import asyncio
 import json
 import httpx
+import uuid
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from urllib.parse import urljoin
 
 @dataclass
 class MCPServerConfig:
     """Configuração para conectar ao MCP Server"""
     base_url: str
     port: int = 8000
-    auth_token: Optional[str] = None
-    timeout: int = 5  # Reduzido para 5 segundos
+    timeout: int = 15
     
     @property
-    def sse_url(self) -> str:
+    def sse_stream_url(self) -> str:
         return f"{self.base_url}:{self.port}/sse"
+        
+    @property
+    def messages_url(self) -> str:
+        return f"{self.base_url}:{self.port}/messages/"
 
-class MCPToolsDiscovery:
-    """Cliente para descobrir tools em MCP Server via SSE"""
+class MCPSSEToolsClient:
+    """Cliente que envia via POST e recebe via SSE simultaneamente"""
     
     def __init__(self, config: MCPServerConfig):
         self.config = config
+        self.session_id = None
         self.client = httpx.AsyncClient(timeout=config.timeout)
+        self.responses = {}
+        self.request_id = 0
+        self.sse_task = None
+        self.sse_active = False
         
     async def __aenter__(self):
         return self
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.sse_task:
+            self.sse_task.cancel()
         await self.client.aclose()
     
     def _get_headers(self) -> Dict[str, str]:
-        """Monta headers para requisições"""
-        headers = {
+        return {
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
+    
+    def _next_request_id(self) -> int:
+        self.request_id += 1
+        return self.request_id
+    
+    async def _listen_sse_responses(self):
+        """Task dedicada para ouvir respostas via SSE"""
+        try:
+            print("🎧 Iniciando escuta de respostas SSE...")
+            
+            async with self.client.stream("GET", self.config.sse_stream_url) as response:
+                if response.status_code != 200:
+                    print(f"❌ Erro SSE: {response.status_code}")
+                    return
+                
+                self.sse_active = True
+                print("✅ Escuta SSE ativa!")
+                
+                async for line in response.aiter_lines():
+                    if not self.sse_active:
+                        break
+                        
+                    # Captura session_id se ainda não temos
+                    if not self.session_id and "session_id=" in line:
+                        session_start = line.find("session_id=") + 11
+                        self.session_id = line[session_start:].strip()
+                        print(f"📋 Session ID: {self.session_id}")
+                        continue
+                    
+                    # Processa eventos de dados
+                    if line.startswith("data: "):
+                        try:
+                            data_str = line[6:].strip()
+                            if not data_str:
+                                continue
+                                
+                            # Tenta parse JSON
+                            data = json.loads(data_str)
+                            
+                            # Se tem ID, é resposta a requisição
+                            if "id" in data:
+                                req_id = data["id"]
+                                self.responses[req_id] = data
+                                method = data.get("method", "resultado")
+                                print(f"📨 Resposta recebida para req {req_id}: {method}")
+                            else:
+                                print(f"📢 Evento: {data}")
+                                
+                        except json.JSONDecodeError:
+                            # Ignora linhas não-JSON
+                            continue
+                
+        except Exception as e:
+            print(f"❌ Erro na escuta SSE: {e}")
+        finally:
+            self.sse_active = False
+    
+    async def _wait_for_session(self, max_wait: int = 5) -> bool:
+        """Aguarda session_id ser capturado"""
+        for _ in range(max_wait * 10):  # décimos de segundo
+            if self.session_id:
+                return True
+            await asyncio.sleep(0.1)
+        return False
+    
+    async def _send_and_wait(self, method: str, params: Dict = None, timeout: float = 8.0) -> Optional[Dict[str, Any]]:
+        """Envia mensagem e aguarda resposta via SSE"""
+        if not self.session_id:
+            print("❌ Session ID não disponível")
+            return None
+            
+        req_id = self._next_request_id()
         
-        if self.config.auth_token:
-            headers["Authorization"] = f"Bearer {self.config.auth_token}"
-            
-        return headers
-    
-    async def check_server_health(self) -> bool:
-        """Verifica se o server SSE está respondendo (com timeout curto)"""
+        message = {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "method": method,
+            "params": params or {}
+        }
+        
         try:
-            # Usa timeout muito curto para não travar
-            async with httpx.AsyncClient(timeout=2.0) as quick_client:
-                # Faz HEAD request para ser mais rápido
-                response = await quick_client.head(
-                    self.config.sse_url, 
-                    headers=self._get_headers()
-                )
-                # Aceita 200, 405 (Method Not Allowed) ou até 404
-                return response.status_code in [200, 405, 404]
-        except Exception as e:
-            print(f"⚠️  Não foi possível verificar saúde (continuando mesmo assim): {e}")
-            return True  # Assume que está OK e continua
-    
-    async def discover_tools_via_mcp_protocol(self) -> List[Dict[str, Any]]:
-        """Descobre tools via protocolo MCP puro sobre SSE"""
-        try:
-            # Requisição MCP para listar tools
-            mcp_request = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "tools/list",
-                "params": {}
-            }
+            url_with_session = f"{self.config.messages_url}?session_id={self.session_id}"
             
-            # Envia requisição MCP via POST
+            print(f"📤 Enviando {method} (id={req_id})")
+            
+            # Envia mensagem
             response = await self.client.post(
-                self.config.sse_url,
+                url_with_session,
                 headers=self._get_headers(),
-                json=mcp_request
+                json=message
             )
             
-            if response.status_code == 200:
-                data = response.json()
-                if "result" in data and "tools" in data["result"]:
-                    return data["result"]["tools"]
-            
-            return []
-            
-        except Exception as e:
-            print(f"Erro ao descobrir tools via protocolo MCP: {e}")
-            return []
-    
-    async def call_mcp_method(self, method: str, params: Dict = None) -> Optional[Dict[str, Any]]:
-        """Chama qualquer método MCP e retorna a resposta"""
-        try:
-            mcp_request = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": method,
-                "params": params or {}
-            }
-            
-            response = await self.client.post(
-                self.config.sse_url,
-                headers=self._get_headers(),
-                json=mcp_request
-            )
-            
-            if response.status_code == 200:
-                return response.json()
+            if response.status_code in [200, 202]:  # 202 = Accepted
+                print(f"✅ Mensagem aceita (status {response.status_code})")
+                
+                # Aguarda resposta via SSE
+                for _ in range(int(timeout * 10)):
+                    if req_id in self.responses:
+                        response_data = self.responses.pop(req_id)
+                        return response_data
+                    await asyncio.sleep(0.1)
+                
+                print(f"⏱️  Timeout aguardando resposta de {method}")
+                return None
             else:
-                print(f"Erro na chamada MCP {method}: {response.status_code}")
+                print(f"❌ Erro HTTP {response.status_code}: {response.text}")
                 return None
                 
         except Exception as e:
-            print(f"Erro ao chamar método MCP {method}: {e}")
+            print(f"❌ Erro enviando {method}: {e}")
             return None
+    
+    async def start_session(self) -> bool:
+        """Inicia sessão SSE"""
+        # Inicia task de escuta SSE
+        self.sse_task = asyncio.create_task(self._listen_sse_responses())
+        
+        # Aguarda session_id ser capturado
+        if not await self._wait_for_session():
+            print("❌ Timeout aguardando session_id")
+            return False
+        
+        print(f"✅ Sessão iniciada: {self.session_id}")
+        return True
+    
+    async def initialize(self) -> bool:
+        """Inicializa protocolo MCP"""
+        print("\n🔌 Inicializando MCP...")
+        
+        response = await self._send_and_wait("initialize", {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {"tools": {}},
+            "clientInfo": {"name": "tools-discovery", "version": "1.0.0"}
+        })
+        
+        if response and "result" in response:
+            server_info = response["result"].get("serverInfo", {})
+            print(f"✅ MCP inicializado!")
+            print(f"   Servidor: {server_info.get('name', 'N/A')}")
+            print(f"   Versão: {server_info.get('version', 'N/A')}")
+            return True
+        else:
+            print("⚠️  Initialize falhou, continuando...")
+            return False
+    
+    async def list_tools(self) -> List[Dict[str, Any]]:
+        """Lista ferramentas disponíveis"""
+        print("\n🔧 Listando tools...")
+        
+        response = await self._send_and_wait("tools/list")
+        
+        if response and "result" in response and "tools" in response["result"]:
+            tools = response["result"]["tools"]
+            print(f"✅ {len(tools)} tool(s) encontrada(s)!")
+            return tools
+        else:
+            print("❌ Erro ao listar tools")
+            if response and "error" in response:
+                print(f"   Erro: {response['error']}")
+            return []
+    
+    async def stop_session(self):
+        """Para sessão SSE"""
+        self.sse_active = False
+        if self.sse_task:
+            self.sse_task.cancel()
 
 def format_tools_output(tools: List[Dict[str, Any]]) -> str:
-    """Formata a saída das tools descobertas"""
+    """Formata saída das tools"""
     if not tools:
         return "❌ Nenhuma tool encontrada"
     
-    output = f"🔧 {len(tools)} tool(s) encontrada(s):\n\n"
+    output = f"\n🎯 {len(tools)} TOOL(S) DESCOBERTA(S):\n" + "="*60 + "\n"
     
     for i, tool in enumerate(tools, 1):
         name = tool.get("name", "N/A")
         description = tool.get("description", "Sem descrição")
         
-        output += f"{i}. **{name}**\n"
+        output += f"\n{i}. 🔧 **{name}**\n"
         output += f"   📝 {description}\n"
         
-        # Mostra parâmetros se existirem
-        if "inputSchema" in tool:
-            schema = tool["inputSchema"]
-            if "properties" in schema:
-                props = list(schema["properties"].keys())
-                output += f"   🔑 Parâmetros: {', '.join(props)}\n"
+        # Parâmetros
+        if "inputSchema" in tool and "properties" in tool["inputSchema"]:
+            props = tool["inputSchema"]["properties"]
+            required = tool["inputSchema"].get("required", [])
+            
+            output += "   📋 Parâmetros:\n"
+            for param_name, param_info in props.items():
+                required_mark = " ⭐" if param_name in required else ""
+                param_type = param_info.get("type", "")
+                param_desc = param_info.get("description", "")
+                output += f"      • {param_name}{required_mark} ({param_type}): {param_desc}\n"
         
-        output += "\n"
+        output += "\n" + "-"*50 + "\n"
     
     return output
 
 async def main():
-    """Função principal da POC"""
+    """Função principal"""
     
-    # Configuração para seu servidor Hotmart MCP
     config = MCPServerConfig(
         base_url="http://127.0.0.1",
-        port=8000,
-        auth_token=None
+        port=8000
     )
     
-    print("🚀 POC: MCP Server SSE Tools Discovery")
-    print(f"📡 Conectando em: {config.sse_url}\n")
+    print("🚀 POC: MCP Tools Discovery via SSE")
+    print(f"📡 Stream: {config.sse_stream_url}")
+    print(f"💬 Messages: {config.messages_url}")
+    print("="*60)
     
-    async with MCPToolsDiscovery(config) as discovery:
+    async with MCPSSEToolsClient(config) as client:
         
-        # 1. Verificação rápida (ou pula se der problema)
-        print("🏥 Verificação rápida do endpoint...")
-        is_healthy = await discovery.check_server_health()
+        # 1. Inicia sessão SSE
+        if not await client.start_session():
+            print("❌ Falha ao iniciar sessão")
+            return
         
-        if is_healthy:
-            print("✅ Endpoint parece estar online")
-        else:
-            print("⚠️  Verificação falhou, mas vamos tentar mesmo assim...")
+        # 2. Inicializa protocolo
+        await client.initialize()
         
-        # 2. Vai direto para o teste principal
-        print("🔍 Descobrindo tools via protocolo MCP...")
-        tools = await discovery.discover_tools_via_mcp_protocol()
+        # 3. Lista tools (principal objetivo)
+        tools = await client.list_tools()
         
         if tools:
-            print("✅ Tools descobertas:")
             print(format_tools_output(tools))
             
-            # 3. Testa uma tool específica se houver
-            if tools:
-                first_tool = tools[0]["name"]
-                print(f"🧪 Testando informações da tool '{first_tool}'...")
-                
-                # Chama tools/call para ver se responde (sem argumentos)
-                result = await discovery.call_mcp_method("tools/call", {
-                    "name": first_tool,
-                    "arguments": {}
-                })
-                
-                if result:
-                    if "result" in result:
-                        print(f"✅ Tool respondeu: {result['result']}")
-                    elif "error" in result:
-                        print(f"⚠️  Tool retornou erro: {result['error']}")
-                    else:
-                        print(f"✅ Tool respondeu: {result}")
-                else:
-                    print("⚠️ Tool não respondeu")
+            print("\n🎉 SUCESSO!")
+            print(f"✅ Servidor MCP conectado via SSE")
+            print(f"✅ {len(tools)} ferramenta(s) descoberta(s)")
+            print(f"✅ Protocolo funcionando perfeitamente")
         else:
-            print("❌ Nenhuma tool encontrada")
-            
-            # 4. Debug: tenta initialize para ver se server responde
-            print("\n🔧 Testando inicialização MCP...")
-            
-            server_info = await discovery.call_mcp_method("initialize", {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "tools-discovery-poc", "version": "1.0.0"}
-            })
-            
-            if server_info:
-                print(f"ℹ️  Servidor respondeu ao initialize: {server_info}")
-            else:
-                print("❌ Servidor não respondeu ao initialize")
+            print("\n❌ FALHA!")
+            print("❌ Nenhuma tool descoberta")
         
-        print("\n" + "="*50)
-        print("POC concluída!")
+        # 4. Para sessão
+        await client.stop_session()
+        
+        print("\n" + "="*60)
+        print("🎯 POC Concluída!")
 
 if __name__ == "__main__":
     asyncio.run(main())
