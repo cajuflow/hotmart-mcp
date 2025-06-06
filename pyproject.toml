@@ -21,6 +21,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +35,10 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/cajuflow/hotmart-mcp"
 Repository = "https://github.com/cajuflow/hotmart-mcp"
+
+# Configuração do build
+[tool.hatch.build.targets.wheel]
+packages = ["src/hotmart"]
 
 # Pytest configuration - básico
 [tool.pytest.ini_options]

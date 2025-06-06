@@ -27,7 +27,7 @@ import logging
 from mcp.server.fastmcp import FastMCP
 
 from hotmart.config import (
-    HOTMART_ENVIRONMENT, BASE_URL
+    HOTMART_ENVIRONMENT, BASE_URL, TRANSPORT_TYPE
 )
 from hotmart.tools import get_products, get_sales_history
 
