@@ -311,7 +311,7 @@ async def main():
     """Função principal"""
     
     config = MCPServerConfig(
-        base_url="http://127.0.0.1",
+        base_url="http://localhost",
         port=8000
     )
     
