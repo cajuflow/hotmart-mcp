@@ -77,22 +77,6 @@ MCP_PORT=8000
 - **Docker/Container**: `MCP_HOST=0.0.0.0` (obrigatório)
 - **Cloud/Produção**: `MCP_HOST=0.0.0.0` (recomendado)
 
-### Configuração Alternativa via FastMCP
-
-Você também pode usar variáveis de ambiente com prefixo `FASTMCP_`:
-
-```env
-# Alternativa à configuração MCP_HOST/MCP_PORT
-FASTMCP_HOST=0.0.0.0
-FASTMCP_PORT=8000
-```
-
-**Prioridade de configuração:**
-1. 📜 Parâmetros no construtor do FastMCP (`MCP_HOST/MCP_PORT`)
-2. 🌍 Variáveis de ambiente `FASTMCP_HOST/FASTMCP_PORT`
-3. 📝 Arquivo `.env`
-4. ⚙️ Padrões do FastMCP (`127.0.0.1:8000`)
-
 ### 4. Integração com Claude Desktop
 
 Adicione ao seu `claude_desktop_config.json`:
@@ -102,23 +86,14 @@ Adicione ao seu `claude_desktop_config.json`:
 {
   "mcpServers": {
     "hotmart": {
-      "command": "uv"
-    }
-  }
-}
-```
-
-**sse:**
-```json
-{
-  "mcpServers": {
-    "hotmart": {
-      "command": "uv", 
-      "args": [
-        "--directory",
-        "/caminho/absoluto/para/hotmart-mcp",
-        "run", "python", "hotmart_mcp.py"
-      ]
+      "command": "python",
+      "args": ["C:/hotmart-mcp/hotmart_mcp.py"],
+      "env": {
+        "HOTMART_CLIENT_ID":"",
+        "HOTMART_CLIENT_SECRET":"",
+        "HOTMART_BASIC_TOKEN":"",
+        "HOTMART_ENVIRONMENT": "production"
+      }
     }
   }
 }
@@ -144,7 +119,7 @@ docker build -t hotmart-mcp .
 docker run -p 8000:8000 --env-file .env hotmart-mcp
 
 # Testar conectividade
-curl http://localhost:8000/sse
+python test_sse_poc.py
 ```
 
 **Importante**: Para Docker, certifique-se que `MCP_HOST=0.0.0.0` no `.env`!
