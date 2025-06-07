@@ -77,3 +77,4 @@ poetry.lock
 # Old test files (cleanup)
 test_*_old.py
 ROADMAP_DUAL_TRANSPORT.md
+.env
