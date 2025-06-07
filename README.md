@@ -50,7 +50,48 @@ HOTMART_ENVIRONMENT=sandbox
 
 # Configuração MCP (sse ou stdio)
 TRANSPORT_TYPE=stdio
+
+# Host e Porta para SSE Transport
+MCP_HOST=0.0.0.0
+MCP_PORT=8000
 ```
+
+## ⚙️ Configuração Avançada
+
+### Host e Porta do Servidor
+
+Para uso com **Docker** ou **SSE transport**, configure:
+
+```env
+# Docker/Container (aceita conexões externas)
+MCP_HOST=0.0.0.0
+MCP_PORT=8000
+
+# Local apenas (default)
+MCP_HOST=127.0.0.1
+MCP_PORT=8000
+```
+
+**Uso comum por ambiente:**
+- **Local/STDIO**: `MCP_HOST=127.0.0.1` (padrão)
+- **Docker/Container**: `MCP_HOST=0.0.0.0` (obrigatório)
+- **Cloud/Produção**: `MCP_HOST=0.0.0.0` (recomendado)
+
+### Configuração Alternativa via FastMCP
+
+Você também pode usar variáveis de ambiente com prefixo `FASTMCP_`:
+
+```env
+# Alternativa à configuração MCP_HOST/MCP_PORT
+FASTMCP_HOST=0.0.0.0
+FASTMCP_PORT=8000
+```
+
+**Prioridade de configuração:**
+1. 📜 Parâmetros no construtor do FastMCP (`MCP_HOST/MCP_PORT`)
+2. 🌍 Variáveis de ambiente `FASTMCP_HOST/FASTMCP_PORT`
+3. 📝 Arquivo `.env`
+4. ⚙️ Padrões do FastMCP (`127.0.0.1:8000`)
 
 ### 4. Integração com Claude Desktop
 
@@ -91,6 +132,27 @@ uv run python hotmart_mcp.py
 
 # Modo SSE (aplicações web)
 TRANSPORT_TYPE=sse uv run python hotmart_mcp.py
+```
+
+### 6. Docker (Opcional)
+
+```bash
+# Build da imagem
+docker build -t hotmart-mcp .
+
+# Executar container (usa .env automático)
+docker run -p 8000:8000 --env-file .env hotmart-mcp
+
+# Testar conectividade
+curl http://localhost:8000/sse
+```
+
+**Importante**: Para Docker, certifique-se que `MCP_HOST=0.0.0.0` no `.env`!
+
+**Log esperado (Docker funcionando):**
+```
+-> Running in SSE mode on 0.0.0.0:8000
+INFO:     Uvicorn running on http://0.0.0.0:8000
 ```
 
 ## 🛠️ Ferramentas Disponíveis

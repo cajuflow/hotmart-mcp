@@ -20,6 +20,8 @@ HOTMART_MAX_RETRIES = int(os.getenv("HOTMART_MAX_RETRIES", "3"))
 
 # MCP Server Configuration
 TRANSPORT_TYPE = os.getenv("TRANSPORT_TYPE", "stdio").lower()
+MCP_HOST = os.getenv("MCP_HOST", "127.0.0.1")
+MCP_PORT = int(os.getenv("MCP_PORT", "8000"))
 
 # Validate required configuration
 if not HOTMART_CLIENT_ID or not HOTMART_CLIENT_SECRET:

@@ -27,7 +27,7 @@ import logging
 from mcp.server.fastmcp import FastMCP
 
 from hotmart.config import (
-    HOTMART_ENVIRONMENT, BASE_URL, TRANSPORT_TYPE
+    HOTMART_ENVIRONMENT, BASE_URL, TRANSPORT_TYPE, MCP_HOST, MCP_PORT
 )
 from hotmart.tools import get_products, get_sales_history
 
@@ -36,7 +36,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("hotmart-mcp")
 
 # Initialize FastMCP
-mcp = FastMCP("Hotmart MCP Server")
+mcp = FastMCP(
+    name="Hotmart MCP Server",
+    host=MCP_HOST,
+    port=MCP_PORT
+)
 
 
 @mcp.tool()
@@ -124,7 +128,7 @@ def run_server():
     print("=" * 50, file=sys.stderr)
 
     if TRANSPORT_TYPE == "sse":
-        print(f"-> Running in SSE mode", file=sys.stderr)
+        print(f"-> Running in SSE mode on {MCP_HOST}:{MCP_PORT}", file=sys.stderr)
         mcp.run(transport="sse")
     elif TRANSPORT_TYPE == "stdio":
         print("-> Running in STDIO mode for local integration", file=sys.stderr)
