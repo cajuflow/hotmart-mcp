@@ -24,7 +24,7 @@ jobs:
         run: uv sync
         
       - name: Run tests
-        run: uv run python test_runner.py
+        run: uv run python run_tests.py
         
   build:
     needs: test
