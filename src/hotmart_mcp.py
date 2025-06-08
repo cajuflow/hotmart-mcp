@@ -20,8 +20,8 @@ if sys.platform == "win32":
         sys.stdout = TextIOWrapper(sys.stdout.detach(), encoding="utf-8")
         sys.stderr = TextIOWrapper(sys.stderr.detach(), encoding="utf-8")
 
-# Add src to Python path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+# Add current directory (src) to Python path for local imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 import logging
 from mcp.server.fastmcp import FastMCP
@@ -110,11 +110,6 @@ async def get_hotmart_sales_history(
         buyer_name, buyer_email, payment_type, offer_code, commission_as
     )
 
-async def server_main():
-    """Asynchronously runs the main server logic."""
-    # This function can be expanded for more complex startup sequences
-    run_server()
-
 def run_server():
     """
     Detects the transport mode from environment variables and starts the
@@ -140,5 +135,9 @@ def run_server():
         )
         sys.exit(1)
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the CLI command."""
     run_server()
+
+if __name__ == "__main__":
+    main()

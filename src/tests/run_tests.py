@@ -9,8 +9,8 @@ import sys
 import time
 from pathlib import Path
 
-# Add src to Python path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+# Add parent directory to Python path for relative imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 # Test results tracking
 test_results = {}
@@ -45,7 +45,7 @@ async def run_all_tests():
     # 1. Test Imports
     print_test_separator("IMPORTS TEST")
     try:
-        from tests.test_imports import test_imports
+        from test_imports import test_imports
         success = test_imports()
         record_test_result("Imports", success)
         if not success:
@@ -59,7 +59,7 @@ async def run_all_tests():
     # 2. Test Configuration
     print_test_separator("CONFIGURATION TEST")
     try:
-        from tests.test_config import test_config
+        from test_config import test_config
         success = test_config()
         record_test_result("Configuration", success)
         if not success:
@@ -71,7 +71,7 @@ async def run_all_tests():
     # 3. Test Authentication
     print_test_separator("AUTHENTICATION TEST")
     try:
-        from tests.test_auth import test_auth
+        from test_auth import test_auth
         success = await test_auth()  # Chamada direta da função async
         record_test_result("Authentication", success)
     except Exception as e:
@@ -81,7 +81,7 @@ async def run_all_tests():
     # 4. Test API Client
     print_test_separator("API CLIENT TEST")
     try:
-        from tests.test_client import test_client
+        from test_client import test_client
         success = await test_client()  # Chamada direta da função async
         record_test_result("API Client", success)
     except Exception as e:
@@ -91,7 +91,7 @@ async def run_all_tests():
     # 5. Test Products
     print_test_separator("PRODUCTS TEST")
     try:
-        from tests.test_products import test_products
+        from test_products import test_products
         success = await test_products()  # Chamada direta da função async
         record_test_result("Products", success)
     except Exception as e:
@@ -101,7 +101,7 @@ async def run_all_tests():
     # 6. Test Sales
     print_test_separator("SALES TEST")
     try:
-        from tests.test_sales import test_sales
+        from test_sales import test_sales
         success = await test_sales()  # Chamada direta da função async
         record_test_result("Sales", success)
     except Exception as e:
@@ -111,7 +111,7 @@ async def run_all_tests():
     # 7. Test Tools Integration
     print_test_separator("TOOLS INTEGRATION TEST")
     try:
-        from tests.test_tools import test_tools
+        from test_tools import test_tools
         success = await test_tools()  # Chamada direta da função async
         record_test_result("Tools Integration", success)
     except Exception as e:
@@ -178,8 +178,8 @@ def check_environment():
     """Check if environment is properly set up"""
     print("🔍 Pre-flight environment check...")
     
-    # Check if .env exists
-    env_file = Path(".env")
+    # Check if .env exists (2 levels up from tests)
+    env_file = Path(__file__).parent.parent.parent / ".env"
     if not env_file.exists():
         print("⚠️ .env file not found")
         print("📝 To run full tests:")
@@ -192,8 +192,8 @@ def check_environment():
         print("✅ .env file found")
         return True
 
-async def main():
-    """Main test runner"""
+async def async_main():
+    """Main test runner (async)"""
     # Check environment
     has_credentials = check_environment()
     
@@ -214,6 +214,10 @@ async def main():
     
     return exit_code
 
-if __name__ == "__main__":
-    exit_code = asyncio.run(main())
+def main():
+    """Entry point for CLI command (sync wrapper)"""
+    exit_code = asyncio.run(async_main())
     sys.exit(exit_code)
+
+if __name__ == "__main__":
+    main()

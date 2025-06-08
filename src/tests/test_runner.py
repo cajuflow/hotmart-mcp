@@ -9,8 +9,8 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Add src to Python path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+# Add parent directory to Python path for relative imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def print_usage():
     """Print usage information"""
@@ -42,31 +42,31 @@ async def run_single_test(test_name):
     
     try:
         if test_name == "imports":
-            from tests.test_imports import test_imports
+            from test_imports import test_imports
             success = test_imports()
             
         elif test_name == "config":
-            from tests.test_config import test_config
+            from test_config import test_config
             success = test_config()
             
         elif test_name == "auth":
-            from tests.test_auth import test_auth
+            from test_auth import test_auth
             success = await test_auth()  # Chamada direta da função async
             
         elif test_name == "client":
-            from tests.test_client import test_client
+            from test_client import test_client
             success = await test_client()  # Chamada direta da função async
             
         elif test_name == "products":
-            from tests.test_products import test_products
+            from test_products import test_products
             success = await test_products()  # Chamada direta da função async
             
         elif test_name == "sales":
-            from tests.test_sales import test_sales
+            from test_sales import test_sales
             success = await test_sales()  # Chamada direta da função async
             
         elif test_name == "tools":
-            from tests.test_tools import test_tools
+            from test_tools import test_tools
             success = await test_tools()  # Chamada direta da função async
             
         elif test_name == "all":
